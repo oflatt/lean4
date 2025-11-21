@@ -285,6 +285,14 @@ syntax (name := grind)
   (" => " grindSeq)? : tactic
 
 /--
+`grind??` behaves like `grind`, but additionally reports the collected proof hints.
+-/
+syntax (name := grindHints)
+  "grind??" optConfig (&" only")?
+  (" [" withoutPosition(grindParam,*) "]")?
+  (" => " grindSeq)? : tactic
+
+/--
 `grind?` takes the same arguments as `grind`, but reports an equivalent call to `grind only`
 that would be sufficient to close the goal. This is useful for reducing the size of the `grind`
 theorems in a local invocation.

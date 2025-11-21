@@ -183,6 +183,7 @@ def grind
     (only : Bool)
     (ps   :  TSyntaxArray ``Parser.Tactic.grindParam)
     (seq? : Option (TSyntax `Lean.Parser.Tactic.Grind.grindSeq))
+    (logHints := false)
     : TacticM Unit := do
   if debug.terminalTacticsAsSorry.get (← getOptions) then
     mvarId.admit
@@ -193,7 +194,8 @@ def grind
       let finalize (result : Grind.Result) : TacticM Unit := do
         if result.hasFailed then
           throwError "`grind` failed\n{← result.toMessageData}"
-        logInfo (← liftMetaM <| Grind.Result.hintsMessageData result)
+        if logHints then
+          logInfo (← liftMetaM <| Grind.Result.hintsMessageData result)
       if let some seq := seq? then
         let (result, _) ← Grind.GrindTacticM.runAtGoal mvarId' params do
           Grind.evalGrindTactic seq
@@ -211,13 +213,14 @@ def evalGrindCore
     (only : Option Syntax)
     (params? : Option (Syntax.TSepArray `Lean.Parser.Tactic.grindParam ","))
     (seq? : Option (TSyntax `Lean.Parser.Tactic.Grind.grindSeq))
+    (logHints := false)
     : TacticM Unit := do
   let only := only.isSome
   let params := if let some params := params? then params.getElems else #[]
   if Grind.grind.warning.get (← getOptions) then
     logWarningAt ref "The `grind` tactic is new and its behavior may change in the future. This project has used `set_option grind.warning true` to discourage its use."
   withMainContext do
-    grind (← getMainGoal) config only params seq?
+    grind (← getMainGoal) config only params seq? (logHints := logHints)
     replaceMainGoal []
 
 /-- Position for the `[..]` child syntax in the `grind` tactic. -/
@@ -269,6 +272,14 @@ private def elabGrindConfig' (config : TSyntax ``Lean.Parser.Tactic.optConfig) (
   let interactive := seq.isSome
   let config ← elabGrindConfig' config interactive
   evalGrindCore stx config only params seq
+
+@[builtin_tactic Lean.Parser.Tactic.grindHints] def evalGrindHints : Tactic := fun stx => do
+  recordExtraModUse (isMeta := false) `Init.Grind.Tactics
+  let `(tactic| grind?? $config:optConfig $[only%$only]?  $[ [$params:grindParam,*] ]? $[=> $seq:grindSeq]?) := stx
+    | throwUnsupportedSyntax
+  let interactive := seq.isSome
+  let config ← elabGrindConfig' config interactive
+  evalGrindCore stx config only params seq (logHints := true)
 
 def evalGrindTraceCore (stx : Syntax) (trace := true) (verbose := true) (useSorry := true) : TacticM (Array (TSyntax `tactic)) := withMainContext do
   let `(tactic| grind? $configStx:optConfig $[only%$only]?  $[ [$params?:grindParam,*] ]?) := stx
