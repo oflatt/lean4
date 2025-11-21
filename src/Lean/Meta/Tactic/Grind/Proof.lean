@@ -87,6 +87,44 @@ private def findCommon (lhs rhs : Expr) : GoalM Expr := do
     it := target
   unreachable!
 
+private def mkEqOrHEqExpr (lhs rhs : Expr) : GoalM Expr := do
+  if (← hasSameType lhs rhs) then
+    mkEq lhs rhs
+  else
+    mkHEq lhs rhs
+
+private def collectCongruencePremises (lhs rhs : Expr) (isSymm : Bool) : GoalM (Array Expr) := do
+  if lhs.isApp && rhs.isApp then
+    let lhsArgs := lhs.getAppArgs
+    let rhsArgs := rhs.getAppArgs
+    let count := min lhsArgs.size rhsArgs.size
+    let goal ← get
+    let mut premises := #[]
+    let lhsFn := lhs.getAppFn
+    let rhsFn := rhs.getAppFn
+    if goal.hasSameRoot lhsFn rhsFn && !isSameExpr lhsFn rhsFn then
+      premises := premises.push (← mkEqOrHEqExpr lhsFn rhsFn)
+    for idx in [:count] do
+      let lhsArg := lhsArgs[idx]!
+      let rhsArg :=
+        if isSymm && rhsArgs.size == 3 && idx == 1 then
+          rhsArgs[2]!
+        else if isSymm && rhsArgs.size == 3 && idx == 2 then
+          rhsArgs[1]!
+        else
+          rhsArgs[idx]!
+      if goal.hasSameRoot lhsArg rhsArg && !isSameExpr lhsArg rhsArg then
+        premises := premises.push (← mkEqOrHEqExpr lhsArg rhsArg)
+    return premises
+  else
+    return #[]
+
+private def recordCongruenceHint (lhs rhs : Expr) (heq : Bool) (isSymm : Bool) : GoalM Unit := do
+  let conclusion ← if heq then mkHEq lhs rhs else mkEq lhs rhs
+  let premises ← collectCongruencePremises lhs rhs isSymm
+  let kind := if isSymm then Hints.Kind.congruenceSymm else Hints.Kind.congruence
+  Grind.recordHint { conclusion, premises, kind }
+
 /--
 Returns `true` if we can construct a congruence proof for `lhs = rhs` using `congrArg`, `congrFun`, and `congr`.
 `f` (`g`) is the function of the `lhs` (`rhs`) application. `numArgs` is the number of arguments.
@@ -253,10 +291,13 @@ mutual
 
   private partial def realizeEqProof (lhs rhs : Expr) (h : Expr) (flipped : Bool) (heq : Bool) : GoalM Expr := do
     if h == congrPlaceholderProof then
-      mkCongrProof lhs rhs heq
+      let proof ← mkCongrProof lhs rhs heq
+      recordCongruenceHint lhs rhs heq (isSymm := false)
+      return proof
     else if h == eqCongrSymmPlaceholderProof then
-      let r ← mkEqCongrSymmProof lhs rhs
-      if heq then mkHEqOfEq r else return r
+      let proof ← mkEqCongrSymmProof lhs rhs
+      recordCongruenceHint lhs rhs heq (isSymm := true)
+      if heq then mkHEqOfEq proof else return proof
     else
       flipProof h flipped heq
 

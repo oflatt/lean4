@@ -218,11 +218,15 @@ Currently, we record only steps that are explainable using the e-graph.
 /-- The kind of hint that was produced. We currently only track e-graph steps. -/
 inductive Hints.Kind where
   | egraph
+  | congruence
+  | congruenceSymm
   deriving Inhabited, BEq, Repr
 
 instance : ToMessageData Hints.Kind where
   toMessageData
     | Hints.Kind.egraph => "egraph"
+    | Hints.Kind.congruence => "congruence"
+    | Hints.Kind.congruenceSymm => "congruence-symm"
 
 -- Information about a single hint.  `conclusion` is the expression proved by the
 -- step, and `premises` are expressions that were used while discharging it.  The
