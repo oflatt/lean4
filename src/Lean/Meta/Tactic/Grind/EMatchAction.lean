@@ -14,6 +14,8 @@ import Lean.Meta.Tactic.Grind.EMatchTheoremPtr
 import Lean.Meta.Tactic.Grind.MarkNestedSubsingletons
 namespace Lean.Meta.Grind.Action
 
+open Lean.Meta.Grind.Hints
+
 /-
 **Note**: The unique IDs created to instantiate theorems have the form `<prefix>.<num>`,
 where `<num>` corresponds to the instantiation order within a particular proof branch.
@@ -159,10 +161,22 @@ public def instantiate' : Action := fun goal kna kp => do
           let newSeq ← mkNewSeq goal thms seq (approx := false)
           checkSeqAt saved? goal newSeq
         let r ← Util.ParamMinimizer.search initMask testMask
-        let newSeq ← match r.status with
-          | .missing => mkNewSeq goal #[] seq (approx := true)
-          | .approx => mkNewSeq goal (maskToThms allThms r.paramMask) seq (approx := true)
-          | .precise => mkNewSeq goal (maskToThms allThms r.paramMask) seq (approx := false)
+        let (newSeq, hintThms) ← match r.status with
+          | .missing => do
+            let newSeq ← mkNewSeq goal #[] seq (approx := true)
+            return (newSeq, (#[] : Array EMatchTheorem))
+          | .approx => do
+            let thms := maskToThms allThms r.paramMask
+            let newSeq ← mkNewSeq goal thms seq (approx := true)
+            return (newSeq, thms)
+          | .precise => do
+            let thms := maskToThms allThms r.paramMask
+            let newSeq ← mkNewSeq goal thms seq (approx := false)
+            return (newSeq, thms)
+        unless hintThms.isEmpty do
+          let goalType ← goal.mvarId.withContext goal.mvarId.getType
+          let rules := hintThms.map (·.origin.key)
+          Grind.recordHint { rules, conclusion := goalType, premises := #[], kind := .egraph }
         return .closed newSeq
       else
         return .closed []

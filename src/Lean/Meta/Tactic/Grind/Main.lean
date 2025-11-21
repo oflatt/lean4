@@ -135,6 +135,7 @@ structure Result where
   counters   : Counters
   simp       : Simp.Stats
   splitDiags : PArray SplitDiagInfo
+  hints      : Hints.Script
 
 private def countersToMessageData (header : String) (cls : Name) (data : Array (Name × Nat)) : MetaM MessageData := do
   let data := data.qsort fun (d₁, c₁) (d₂, c₂) => if c₁ == c₂ then Name.lt d₁ d₂ else c₁ > c₂
@@ -249,12 +250,13 @@ def mkResult (params : Params) (failure? : Option Goal) : GrindM Result := do
   let counters   := (← get).counters
   let splitDiags := (← get).splitDiags
   let simp       := { (← get).simp with }
+  let hints      := (← get).hints
   if failure?.isNone then
     -- If there are no failures and diagnostics are enabled, we still report the performance counters.
     if (← isDiagnosticsEnabled) then
       if let some msg ← mkGlobalDiag counters simp splitDiags then
         logInfo msg
-  return { failure?, issues, config := params.config, counters, simp, splitDiags }
+  return { failure?, issues, config := params.config, counters, simp, splitDiags, hints }
 
 def GrindM.runAtGoal (mvarId : MVarId) (params : Params) (k : Goal → GrindM α) (evalTactic? : Option EvalTactic := none) : MetaM α := do
   let go : GrindM α := withReducible do

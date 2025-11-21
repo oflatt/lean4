@@ -206,6 +206,38 @@ structure SplitDiagInfo where
   numCases    : Nat
   splitSource : SplitSource
 
+/--
+Hints emitted while constructing a proof.
+Currently, we record only steps that are explainable using the e-graph.
+-/
+namespace Hints
+
+/-- The kind of hint that was produced. We currently only track e-graph steps. -/
+inductive Kind where
+  | egraph
+  deriving Inhabited, BEq, Repr
+
+/--
+Information about a single hint.  `conclusion` is the expression proved by the
+step, and `premises` are expressions that were used while discharging it.  The
+`rules` array lists every e-graph lemma or canonical rule that contributed to
+this step (mirroring the `grind only [...]` syntax).
+-/
+structure Step where
+  /-- Lemmas or canonical rules used in this step. -/
+  rules      : Array Name := #[]
+  conclusion : Expr
+  premises   : Array Expr := #[]
+  kind       : Kind := .egraph
+  deriving Inhabited
+
+/-- A flat script of hints, recorded in the order they were committed. -/
+structure Script where
+  steps : Array Step := #[]
+  deriving Inhabited
+
+end Hints
+
 /-- State for the `GrindM` monad. -/
 structure State where
   /-- `ShareCommon` (aka `Hash-consing`) state. -/
@@ -231,6 +263,8 @@ structure State where
   counters   : Counters := {}
   /-- Split diagnostic information. This information is only collected when `set_option diagnostics true` -/
   splitDiags : PArray SplitDiagInfo := {}
+  /-- Recorded proof hints, currently populated with e-graph steps. -/
+  hints      : Hints.Script := {}
   /--
   Mapping from binary functions `f` to a theorem `thm : ∀ a b, f a b = .eq → a = b`
   if it implements the `LawfulEqCmp` type class.
@@ -371,6 +405,22 @@ def saveSplitDiagInfo (c : Expr) (gen : Nat) (numCases : Nat) (splitSource : Spl
   if (← isDiagnosticsEnabled) then
     let lctx ← getLCtx
     modify fun s => { s with splitDiags := s.splitDiags.push { c, gen, lctx, numCases, splitSource } }
+
+/-- Append a new proof hint to the running script. -/
+def recordHint (hint : Hints.Step) : GrindM Unit := do
+  let rulesStr :=
+    if hint.rules.isEmpty then
+      "(none)"
+    else
+      String.intercalate ", " (hint.rules.toList.map (·.toString))
+  let premisesMsg : MessageData :=
+    if hint.premises.isEmpty then
+      m!"(none)"
+    else
+      MessageData.joinSep (hint.premises.toList.map indentExpr) m!"\n"
+  trace[grind.hints]
+    m!"hint ({hint.kind}) rules: {rulesStr}\nconclusion:\n{indentExpr hint.conclusion}\npremises:\n{premisesMsg}"
+  modify fun s => { s with hints := { s.hints with steps := s.hints.steps.push hint } }
 
 @[inline] def getMethodsRef : GrindM MethodsRef :=
   read
