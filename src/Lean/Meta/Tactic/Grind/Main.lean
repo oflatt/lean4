@@ -196,14 +196,18 @@ def Result.hintsMessageData (result : Result) : MetaM MessageData := do
           m!"(none)"
         else
           MessageData.joinSep (step.rules.toList.map fun declName => m!"{declName}") m!", "
+      let conclusionMsg : MessageData :=
+        MessageData.nest 2 (MessageData.ofExpr step.conclusion)
       let premisesMsg : MessageData :=
         if step.premises.isEmpty then
           m!"(none)"
         else
-          MessageData.joinSep (step.premises.toList.map indentExpr) m!"\n"
+          let entries := step.premises.toList.map fun e =>
+            MessageData.nest 2 (MessageData.ofExpr e)
+          MessageData.joinSep entries m!"\n"
       let body := #[
         .trace { cls := `grind.hints } "rules" #[rulesMsg],
-        .trace { cls := `grind.hints } "conclusion" #[indentExpr step.conclusion],
+        .trace { cls := `grind.hints } "conclusion" #[conclusionMsg],
         .trace { cls := `grind.hints } "premises" #[premisesMsg]
       ]
       entries := entries.push <| .trace { cls := `grind.hints } m!"hint {idx.succ} ({step.kind})" body

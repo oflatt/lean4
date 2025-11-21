@@ -424,9 +424,12 @@ def recordHint (hint : Hints.Step) : GrindM Unit := do
     if hint.premises.isEmpty then
       m!"(none)"
     else
-      MessageData.joinSep (hint.premises.toList.map indentExpr) m!"\n"
+      let entries := hint.premises.toList.map fun e =>
+        MessageData.nest 2 (MessageData.ofExpr e)
+      MessageData.joinSep entries m!"\n"
+  let conclusionMsg := MessageData.nest 2 (MessageData.ofExpr hint.conclusion)
   trace[grind.hints]
-    m!"hint ({hint.kind}) rules: {rulesStr}\nconclusion:\n{indentExpr hint.conclusion}\npremises:\n{premisesMsg}"
+    m!"hint ({hint.kind}) rules: {rulesStr}\nconclusion:\n{conclusionMsg}\npremises:\n{premisesMsg}"
   modify fun s => { s with hints := { s.hints with steps := s.hints.steps.push hint } }
 
 @[inline] def getMethodsRef : GrindM MethodsRef :=

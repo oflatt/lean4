@@ -4,9 +4,9 @@ trace: [grind.hints] Hints
     [grind.hints] rules
       (none)
     [grind.hints] conclusion
-        f y = f z
+      f y = f z
     [grind.hints] premises
-        y = z
+      y = z
 -/
 #guard_msgs in
 example (f : Nat → Nat) (y z : Nat) (h : y = z) : f y = f z := by

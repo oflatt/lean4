@@ -156,7 +156,14 @@ notation:60 "(" σ ", " s ")"  " ⇓ " σ':60 => Bigstep σ s σ'
 
 /- This proof can be automated using forward reasoning. -/
 theorem Bigstem.det (h₁ : (σ, s) ⇓ σ₁) (h₂ : (σ, s) ⇓ σ₂) : σ₁ = σ₂ := by
-  induction h₁ generalizing σ₂ <;> grind [Bigstep]
+  induction h₁ generalizing σ₂
+  . grind [Bigstep]
+  . grind [Bigstep]
+  . grind [Bigstep]
+  . grind [Bigstep]
+  . grind [Bigstep]
+  . grind [Bigstep]
+  . grind [Bigstep]
 
 abbrev EvalM := ExceptT String (StateM State)
 
