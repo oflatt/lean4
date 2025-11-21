@@ -193,7 +193,7 @@ def grind
       let finalize (result : Grind.Result) : TacticM Unit := do
         if result.hasFailed then
           throwError "`grind` failed\n{← result.toMessageData}"
-        return ()
+        logInfo (← liftMetaM <| Grind.Result.hintsMessageData result)
       if let some seq := seq? then
         let (result, _) ← Grind.GrindTacticM.runAtGoal mvarId' params do
           Grind.evalGrindTactic seq

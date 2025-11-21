@@ -2,6 +2,10 @@
 Copyright (c) 2024 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura
+
+Hints emitted while constructing a proof using the e-graph.
+Currently, we record only steps that are explainable using the e-graph, and we
+track the kind of hint that was produced (currently limited to e-graph steps).
 -/
 module
 prelude
@@ -205,38 +209,37 @@ structure SplitDiagInfo where
   gen         : Nat
   numCases    : Nat
   splitSource : SplitSource
+  deriving Inhabited
 
-/--
+/-
 Hints emitted while constructing a proof.
 Currently, we record only steps that are explainable using the e-graph.
 -/
-namespace Hints
-
 /-- The kind of hint that was produced. We currently only track e-graph steps. -/
-inductive Kind where
+inductive Hints.Kind where
   | egraph
   deriving Inhabited, BEq, Repr
 
-/--
-Information about a single hint.  `conclusion` is the expression proved by the
-step, and `premises` are expressions that were used while discharging it.  The
-`rules` array lists every e-graph lemma or canonical rule that contributed to
-this step (mirroring the `grind only [...]` syntax).
--/
-structure Step where
+instance : ToMessageData Hints.Kind where
+  toMessageData
+    | Hints.Kind.egraph => "egraph"
+
+-- Information about a single hint.  `conclusion` is the expression proved by the
+-- step, and `premises` are expressions that were used while discharging it.  The
+-- `rules` array lists every e-graph lemma or canonical rule that contributed to
+-- this step (mirroring the `grind only [...]` syntax).
+structure Hints.Step where
   /-- Lemmas or canonical rules used in this step. -/
   rules      : Array Name := #[]
   conclusion : Expr
   premises   : Array Expr := #[]
-  kind       : Kind := .egraph
+  kind       : Hints.Kind := .egraph
   deriving Inhabited
 
-/-- A flat script of hints, recorded in the order they were committed. -/
-structure Script where
-  steps : Array Step := #[]
+-- A flat script of hints, recorded in the order they were committed.
+structure Hints.Script where
+  steps : Array Hints.Step := #[]
   deriving Inhabited
-
-end Hints
 
 /-- State for the `GrindM` monad. -/
 structure State where

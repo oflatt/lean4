@@ -164,15 +164,15 @@ public def instantiate' : Action := fun goal kna kp => do
         let (newSeq, hintThms) ← match r.status with
           | .missing => do
             let newSeq ← mkNewSeq goal #[] seq (approx := true)
-            return (newSeq, (#[] : Array EMatchTheorem))
+            pure (newSeq, (#[] : Array EMatchTheorem))
           | .approx => do
             let thms := maskToThms allThms r.paramMask
             let newSeq ← mkNewSeq goal thms seq (approx := true)
-            return (newSeq, thms)
+            pure (newSeq, thms)
           | .precise => do
             let thms := maskToThms allThms r.paramMask
             let newSeq ← mkNewSeq goal thms seq (approx := false)
-            return (newSeq, thms)
+            pure (newSeq, thms)
         unless hintThms.isEmpty do
           let goalType ← goal.mvarId.withContext goal.mvarId.getType
           let rules := hintThms.map (·.origin.key)

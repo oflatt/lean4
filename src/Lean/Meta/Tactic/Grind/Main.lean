@@ -183,6 +183,32 @@ private def mkGlobalDiag (cs : Counters) (simp : Simp.Stats) (ss : PArray SplitD
   else
     return some <| .trace { cls := `grind } "Diagnostics" msgs
 
+def Result.hintsMessageData (result : Result) : MetaM MessageData := do
+  let steps := result.hints.steps
+  if steps.isEmpty then
+    return .trace { cls := `grind.hints } "Hints" #[m!"(none recorded)"]
+  else
+    let mut entries : Array MessageData := #[]
+    for idx in [:steps.size] do
+      let step := steps[idx]!
+      let rulesMsg : MessageData :=
+        if step.rules.isEmpty then
+          m!"(none)"
+        else
+          MessageData.joinSep (step.rules.toList.map fun declName => m!"{declName}") m!", "
+      let premisesMsg : MessageData :=
+        if step.premises.isEmpty then
+          m!"(none)"
+        else
+          MessageData.joinSep (step.premises.toList.map indentExpr) m!"\n"
+      let body := #[
+        .trace { cls := `grind.hints } "rules" #[rulesMsg],
+        .trace { cls := `grind.hints } "conclusion" #[indentExpr step.conclusion],
+        .trace { cls := `grind.hints } "premises" #[premisesMsg]
+      ]
+      entries := entries.push <| .trace { cls := `grind.hints } m!"hint {idx.succ} ({step.kind})" body
+    return .trace { cls := `grind.hints } "Hints" entries
+
 def Result.hasFailed (r : Result) : Bool :=
   r.failure?.isSome
 
@@ -200,6 +226,7 @@ def Result.toMessageData (result : Result) : MetaM MessageData := do
       msgs := msgs ++ [.trace { cls := `grind } "Issues" issues.reverse.toArray]
     if let some msg ← mkGlobalDiag result.counters result.simp result.splitDiags then
       msgs := msgs ++ [msg]
+  msgs := msgs ++ [← result.hintsMessageData]
   return MessageData.joinSep msgs m!"\n"
 
 /--

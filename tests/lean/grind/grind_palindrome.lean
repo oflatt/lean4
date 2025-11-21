@@ -32,4 +32,8 @@ theorem checkPalin1_correct' : checkPalin1 xs = true ↔ IsPalindrome xs := by
     -- which is false.
   · grind
     -- The same argument should apply here.
-  · grind
+  · grind =>
+      cases #fc59 <;>
+      mbtc <;>
+      cases #fbb2 <;>
+      lia
